@@ -44,6 +44,7 @@ dependencies {
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.11.1'
     implementation 'androidx.biometric:biometric:1.0.1'
     implementation 'androidx.test.espresso:espresso-contrib:3.4.0'
+    implementation 'com.microsoft.sqlserver:mssql-jdbc:10.2.0.jre11'
 
 
     androidTestImplementation 'androidx.test.ext:junit:1.1.3'
@@ -63,6 +64,7 @@ dependencies {
     testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:1.5.1"
     testImplementation "com.google.truth:truth:1.1.3"
     testImplementation "com.squareup.okhttp3:mockwebserver:4.9.1"
+    androidTestImplementation project(path: ':app')
     //testImplementation "io.mockk:mockk:1.10.5"
     debugImplementation "androidx.compose.ui:ui-test-manifest:1.2.0-beta03"
 

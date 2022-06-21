@@ -8,9 +8,11 @@ import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.withClassName;
 import static androidx.test.espresso.matcher.ViewMatchers.withHint;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
+import static androidx.test.espresso.matcher.ViewMatchers.withText;
 import static org.junit.Assert.*;
 
 import android.widget.DatePicker;
+import android.widget.TimePicker;
 
 import androidx.test.espresso.action.ViewActions;
 import androidx.test.espresso.contrib.PickerActions;
@@ -25,6 +27,11 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import java.io.IOException;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 
 import dagger.hilt.android.testing.HiltAndroidTest;
 
@@ -69,7 +76,9 @@ public class RequestARideTests {
 
     /**
      * Picks the date and time from the date-time picker button
-     * on the Request A Ride Page
+     * on the Request A Ride Page.
+     *
+     * Picks a date of 1-1-2000 and a time of 12:30 PM
      */
     private void pickDateAndTime(){
         //click on the calendar button
@@ -77,9 +86,11 @@ public class RequestARideTests {
 
         //Find the calendar and set a date
         onView(withClassName(Matchers.equalTo(DatePicker.class.getName()))).perform(PickerActions.setDate(2000, 1, 1));
+        onView(withText("OK")).perform(click());
 
         //Find the Clock and set a time
-
+        onView(withClassName(Matchers.equalTo(TimePicker.class.getName()))).perform(PickerActions.setTime(12, 30));
+        onView(withText("OK")).perform(click());
     }
 
     /**
@@ -120,12 +131,10 @@ public class RequestARideTests {
      * with the correct information.
      */
     @Test
-    public void Test_RequestARide_PostInformationIsCorrect(){
+    public void Test_RequestARide_PostsRides(){
         navigateToRequestARide();
         pickDateAndTime();
 
-
-        /*
         //Pick up location and destination use the examples from the sample distance matrix api request
         //Distance Expected: 228 (mi)
         //Duration Expected: 14220 (seconds)
@@ -134,7 +143,101 @@ public class RequestARideTests {
 
         //click submit
         onView(withId(R.id.btnReqARide)).perform(click());
-        */
+
+        //Wait
+        MockClock clock = new MockClock();
+        clock.sleep(2000); //wait 2 seconds
+
+        //Assert that the entry is in the database
+        boolean foundInDatabase = checkDatabaseForNewEntry();
+        assertTrue("Ride was not found in the database! Ride not posted", foundInDatabase);
+        deleteEntriesFromDatabase();
         
+    }
+
+    /**
+     * Checks the database for the expected entry in the rides table
+     * @return true if the expected entry was found, false if it wasn't
+     */
+    private boolean checkDatabaseForNewEntry() {
+        try{
+            Class.forName("com.microsoft.sqlserver");
+        }catch (ClassNotFoundException e){
+            System.out.println("Driver could not be set up properly");
+        }
+        Connection conn = null;
+        boolean rideFound = false;
+        System.out.println("Starting thing: " );
+        try {
+            conn = DriverManager.getConnection("jdbc:sqlserver://jdsteltz.database.windows.net:1433;database=EnterpriseApps;user=jdsteltz@jdsteltz;password=Dawson226!;encrypt=true;trustServerCertificate=false;hostNameInCertificate=*.database.windows.net;loginTimeout=30;");
+            System.out.println("We are in the thing");
+            if (conn != null) {
+                System.out.println("Searching for entries by starting location");
+                Statement searchQuery = conn.createStatement();
+                String SQL = "select * from dbo.ride where rideDate = '1-1-2000 12:30'";
+                ResultSet results = searchQuery.executeQuery(SQL);
+
+                if (results.next()) //if we found anything
+                {
+                    //return true; //results found, return true
+                    rideFound = true;
+                } else {
+                    //return false; //nothing was found, return false
+                }
+            }
+        } catch (SQLException e) {
+            System.out.println("SQL Exception thrown, check 'checkDatabaseForNewEntry' function");
+            e.printStackTrace();
+        } finally {
+            if (conn != null) {
+                try {
+                    conn.close();
+                } catch (SQLException ex) {
+                    //ex.printStackTrace();
+                }
+            }
+            return rideFound;
+        }
+    }
+
+    /**
+     * Deletes a ride by the expected test date (1-1-2000)
+     */
+    private static void deleteEntriesFromDatabase() {
+        try{
+            Class.forName("com.microsoft.sqlserver");
+        }catch (ClassNotFoundException e){
+            System.out.println("Driver could not be set up properly");
+        }
+        Connection conn = null;
+        try {
+            //Class.forName("com.microsoft.sqlserver");
+            conn = DriverManager.getConnection("jdbc:sqlserver://jdsteltz.database.windows.net:1433;database=EnterpriseApps;user=jdsteltz@jdsteltz;password=Dawson226!;encrypt=true;trustServerCertificate=false;hostNameInCertificate=*.database.windows.net;loginTimeout=30;");
+            if (conn != null) {
+                System.out.println("\nDatabase connection successful\n");
+                System.out.println(
+                        "\nDeleting rides with a date of 1-1-2000 and ride time of 12:30 from the rides table\n");
+                Statement deleteStmt = conn.createStatement();
+                String SQL = "DELETE from dbo.Ride where rideDate = '1-1-2000 12:30';";
+                int result = deleteStmt.executeUpdate(SQL);
+                conn.commit();
+                if (result == 0) {
+                    System.out.println("\nRecord not found in database, check the rides table\n");
+                } else {
+                    System.out.println("\nRides deleted from database\n");
+                }
+            }
+        } catch (SQLException ex) {
+            System.out.println("\nConnection to database failed, delete rides with the expected test date (1-1-2000) from the database manually");
+            ex.printStackTrace();
+        } finally {
+            if (conn != null) {
+                try {
+                    conn.close();
+                } catch (SQLException ex) {
+                    //ex.printStackTrace();
+                }
+            }
+        }
     }
 }
